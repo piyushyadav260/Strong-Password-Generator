@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VaultKey — Password Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+<style>
+  /* ── CSS Variables ──────────────────────────────────── */
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1c1c28;
+    --border: #2a2a3a;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --accent: #7c3aed;
+    --accent2: #06d6a0;
+    --accent3: #f72585;
+    --weak: #f72585;
+    --medium: #ffd166;
+    --strong: #06d6a0;
+    --radius: 12px;
+    --mono: 'Space Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+  [data-theme="light"] {
+    --bg: #f0eff5;
+    --surface: #ffffff;
+    --surface2: #e8e7f0;
+    --border: #d0cfe0;
+    --text: #1a1a2e;
+    --muted: #7a7a90;
+    --accent: #7c3aed;
+    --accent2: #059669;
+    --accent3: #e11d74;
+  }
+
+  /* ── Reset ──────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--display);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+    transition: background .3s, color .3s;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ── Background grid ────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: .25;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(124,58,237,.18) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  .wrapper {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 680px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+
+  /* ── Header ─────────────────────────────────────────── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 0 8px;
+    animation: fadeDown .5s ease both;
+  }
+  .logo { display: flex; flex-direction: column; }
+  .logo-name {
+    font-size: 1.8rem; font-weight: 800; letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .logo-sub { font-family: var(--mono); font-size: .65rem; color: var(--muted); letter-spacing: 3px; }
+
+  /* ── Theme Toggle ───────────────────────────────────── */
+  .theme-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 50%; width: 40px; height: 40px;
+    cursor: pointer; font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s, transform .2s;
+  }
+  .theme-btn:hover { background: var(--surface2); transform: rotate(20deg); }
+
+  /* ── Card ───────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    animation: fadeUp .5s ease both;
+    transition: background .3s, border-color .3s;
+  }
+  .card + .card { animation-delay: .07s; }
+  .card:nth-child(4) { animation-delay: .14s; }
+  .card:nth-child(5) { animation-delay: .21s; }
+
+  .section-label {
+    font-family: var(--mono); font-size: .65rem;
+    color: var(--muted); letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  /* ── Password Display ───────────────────────────────── */
+  .pwd-display {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 20px 16px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  #passwordOutput {
+    font-family: var(--mono);
+    font-size: 1.25rem; font-weight: 700;
+    letter-spacing: .08em;
+    color: var(--text);
+    word-break: break-all;
+    min-height: 32px;
+    transition: opacity .2s;
+    line-height: 1.5;
+  }
+  .pwd-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 12px;
+  }
+  .entropy-tag {
+    font-family: var(--mono); font-size: .65rem;
+    color: var(--muted); letter-spacing: 1px;
+  }
+  .pwd-actions { display: flex; gap: 8px; }
+
+  /* ── Strength Bar ───────────────────────────────────── */
+  .strength-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .strength-bars { display: flex; gap: 5px; flex: 1; }
+  .strength-bar {
+    height: 5px; flex: 1; border-radius: 99px;
+    background: var(--border);
+    transition: background .4s cubic-bezier(.4,0,.2,1);
+  }
+  .strength-label {
+    font-family: var(--mono); font-size: .7rem; font-weight: 700;
+    letter-spacing: 2px; min-width: 56px; text-align: right;
+    transition: color .3s;
+  }
+
+  /* ── Controls ───────────────────────────────────────── */
+  .length-row {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 22px;
+  }
+  .length-label { font-size: .9rem; color: var(--muted); white-space: nowrap; }
+  .length-value {
+    font-family: var(--mono); font-size: 1.1rem; font-weight: 700;
+    color: var(--accent); min-width: 28px; text-align: center;
+  }
+  input[type="range"] {
+    flex: 1; height: 5px; border-radius: 99px;
+    background: var(--border); outline: none; cursor: pointer;
+    -webkit-appearance: none;
+    accent-color: var(--accent);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 0 rgba(124,58,237,.4);
+    transition: box-shadow .2s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 6px rgba(124,58,237,.2);
+  }
+
+  /* ── Checkboxes ─────────────────────────────────────── */
+  .options-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .checkbox-item {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; padding: 12px 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; user-select: none;
+    transition: border-color .2s, background .2s;
+  }
+  .checkbox-item:hover { border-color: var(--accent); }
+  .checkbox-item.active {
+    border-color: var(--accent);
+    background: rgba(124,58,237,.08);
+  }
+  .checkbox-item input { display: none; }
+  .check-box {
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 2px solid var(--border);
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s, border-color .2s;
+    flex-shrink: 0;
+  }
+  .checkbox-item.active .check-box {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .check-icon { color: white; font-size: .7rem; display: none; }
+  .checkbox-item.active .check-icon { display: block; }
+  .check-text { font-size: .85rem; }
+  .check-sample {
+    font-family: var(--mono); font-size: .65rem; color: var(--muted); display: block;
+  }
+
+  /* ── Buttons ─────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 20px; border-radius: 8px; border: none;
+    font-family: var(--display); font-size: .85rem; font-weight: 600;
+    cursor: pointer; transition: all .2s; white-space: nowrap;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #9333ea);
+    color: #fff; flex: 1;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(124,58,237,.4); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-icon {
+    background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border); padding: 10px 14px;
+  }
+  .btn-icon:hover { background: var(--border); }
+  .btn-secondary {
+    background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border); width: 100%;
+  }
+  .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+  .generate-row { display: flex; gap: 10px; }
+
+  /* ── Toast ───────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(60px);
+    background: var(--accent2); color: #0a0a0f;
+    padding: 10px 22px; border-radius: 99px;
+    font-family: var(--mono); font-size: .8rem; font-weight: 700;
+    opacity: 0; transition: all .3s; z-index: 999; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── History ─────────────────────────────────────────── */
+  .history-list { display: flex; flex-direction: column; gap: 8px; }
+  .history-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; gap: 12px;
+    animation: fadeUp .3s ease both;
+  }
+  .history-pwd { font-family: var(--mono); font-size: .8rem; flex: 1; word-break: break-all; }
+  .history-badge {
+    font-family: var(--mono); font-size: .6rem; font-weight: 700;
+    padding: 3px 8px; border-radius: 99px; white-space: nowrap;
+  }
+  .badge-strong { background: rgba(6,214,160,.15); color: var(--strong); }
+  .badge-medium { background: rgba(255,209,102,.15); color: var(--medium); }
+  .badge-weak   { background: rgba(247,37,133,.15); color: var(--weak); }
+  .history-copy { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .9rem; transition: color .2s; }
+  .history-copy:hover { color: var(--accent2); }
+  .history-empty { font-family: var(--mono); font-size: .75rem; color: var(--muted); text-align: center; padding: 16px; }
+
+  /* ── Security Info ───────────────────────────────────── */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .info-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px;
+  }
+  .info-icon { font-size: 1.3rem; margin-bottom: 6px; }
+  .info-title { font-size: .8rem; font-weight: 600; margin-bottom: 3px; }
+  .info-desc { font-size: .72rem; color: var(--muted); line-height: 1.5; }
+
+  /* ── Download ────────────────────────────────────────── */
+  .download-row { display: flex; gap: 10px; }
+
+  /* ── Animations ──────────────────────────────────────── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .4; }
+  }
+  .generating { animation: pulse .5s ease infinite; }
+
+  /* ── Responsive ──────────────────────────────────────── */
+  @media (max-width: 500px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .info-grid { grid-template-columns: 1fr; }
+    #passwordOutput { font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-name">🔐 VaultKey</span>
+      <span class="logo-sub">Secure Password Generator</span>
+    </div>
+    <button class="theme-btn" id="themeToggle" title="Toggle theme">🌙</button>
+  </header>
+
+  <!-- GENERATOR CARD -->
+  <div class="card">
+    <p class="section-label">Generated Password</p>
+
+    <!-- Password Output -->
+    <div class="pwd-display">
+      <div id="passwordOutput">Click Generate to begin…</div>
+      <div class="pwd-meta">
+        <span class="entropy-tag" id="entropyTag">Entropy: — bits</span>
+        <div class="pwd-actions">
+          <button class="btn btn-icon" id="copyBtn" title="Copy">📋</button>
+          <button class="btn btn-icon" id="downloadSingleBtn" title="Download">💾</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strength -->
+    <div class="strength-row">
+      <div class="strength-bars">
+        <div class="strength-bar" id="bar1"></div>
+        <div class="strength-bar" id="bar2"></div>
+        <div class="strength-bar" id="bar3"></div>
+        <div class="strength-bar" id="bar4"></div>
+      </div>
+      <span class="strength-label" id="strengthLabel">—</span>
+    </div>
+
+    <!-- Length -->
+    <div class="length-row">
+      <span class="length-label">Length</span>
+      <input type="range" id="lengthSlider" min="8" max="32" value="16" />
+      <span class="length-value" id="lengthValue">16</span>
+    </div>
+
+    <!-- Options -->
+    <div class="options-grid" id="optionsGrid">
+      <label class="checkbox-item active" data-key="uppercase">
+        <input type="checkbox" checked />
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <div>
+          <span class="check-text">Uppercase</span>
+          <span class="check-sample">A B C … Z</span>
+        </div>
+      </label>
+      <label class="checkbox-item active" data-key="lowercase">
+        <input type="checkbox" checked />
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <div>
+          <span class="check-text">Lowercase</span>
+          <span class="check-sample">a b c … z</span>
+        </div>
+      </label>
+      <label class="checkbox-item active" data-key="numbers">
+        <input type="checkbox" checked />
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <div>
+          <span class="check-text">Numbers</span>
+          <span class="check-sample">0 1 2 … 9</span>
+        </div>
+      </label>
+      <label class="checkbox-item active" data-key="symbols">
+        <input type="checkbox" checked />
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <div>
+          <span class="check-text">Symbols</span>
+          <span class="check-sample">! @ # $ % ^ &</span>
+        </div>
+      </label>
+    </div>
+
+    <!-- Generate Button -->
+    <div class="generate-row" style="margin-top:20px;">
+      <button class="btn btn-primary" id="generateBtn">⚡ Generate Password</button>
+    </div>
+  </div>
+
+  <!-- HISTORY CARD -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <p class="section-label" style="margin:0;">Session History</p>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-icon" id="downloadAllBtn" title="Download all history" style="font-size:.75rem;padding:6px 12px;">📥 Export</button>
+        <button class="btn btn-icon" id="clearHistoryBtn" title="Clear history" style="font-size:.75rem;padding:6px 12px;">🗑 Clear</button>
+      </div>
+    </div>
+    <div class="history-list" id="historyList">
+      <p class="history-empty">No passwords generated yet.</p>
+    </div>
+  </div>
+
+  <!-- SECURITY INFO CARD -->
+  <div class="card">
+    <p class="section-label">Security Implementation</p>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-icon">🎲</div>
+        <div class="info-title">Crypto-Safe RNG</div>
+        <div class="info-desc">Uses <code>crypto.getRandomValues()</code> — never <code>Math.random()</code>. Compliant with CSPRNG standards.</div>
+      </div>
+      <div class="info-item">
+        <div class="info-icon">📐</div>
+        <div class="info-title">Entropy Analysis</div>
+        <div class="info-desc">Entropy = length × log₂(charset size). Strong passwords exceed 80 bits of entropy.</div>
+      </div>
+      <div class="info-item">
+        <div class="info-icon">🚫</div>
+        <div class="info-title">No Predictable Patterns</div>
+        <div class="info-desc">Characters are drawn uniformly at random. No sequential fills or repeated blocks.</div>
+      </div>
+      <div class="info-item">
+        <div class="info-icon">✅</div>
+        <div class="info-title">Input Validation</div>
+        <div class="info-desc">At least one charset required. Length clamped to 8–32. All edge cases handled gracefully.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+// ── Charsets ────────────────────────────────────────────
+const CHARSETS = {
+  uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  lowercase: 'abcdefghijklmnopqrstuvwxyz',
+  numbers:   '0123456789',
+  symbols:   '!@#$%^&*()-_=+[]{}|;:,.<>?'
+};
+
+// ── State ───────────────────────────────────────────────
+let history = [];
+let currentPassword = '';
+
+// ── DOM refs ────────────────────────────────────────────
+const output      = document.getElementById('passwordOutput');
+const entropyTag  = document.getElementById('entropyTag');
+const lengthSlider= document.getElementById('lengthSlider');
+const lengthValue = document.getElementById('lengthValue');
+const generateBtn = document.getElementById('generateBtn');
+const copyBtn     = document.getElementById('copyBtn');
+const strengthLbl = document.getElementById('strengthLabel');
+const bars        = [1,2,3,4].map(i => document.getElementById('bar'+i));
+const historyList = document.getElementById('historyList');
+const toast       = document.getElementById('toast');
+const themeToggle = document.getElementById('themeToggle');
+const optionLabels= document.querySelectorAll('.checkbox-item');
+
+// ── Theme toggle ────────────────────────────────────────
+themeToggle.addEventListener('click', () => {
+  const html = document.documentElement;
+  const isDark = html.dataset.theme === 'dark';
+  html.dataset.theme = isDark ? 'light' : 'dark';
+  themeToggle.textContent = isDark ? '☀️' : '🌙';
+});
+
+// ── Checkbox interaction ─────────────────────────────────
+optionLabels.forEach(label => {
+  label.addEventListener('click', () => {
+    const cb = label.querySelector('input');
+    cb.checked = !cb.checked;
+    label.classList.toggle('active', cb.checked);
+  });
+});
+
+// ── Slider ───────────────────────────────────────────────
+lengthSlider.addEventListener('input', () => {
+  lengthValue.textContent = lengthSlider.value;
+});
+
+// ── Crypto-safe RNG ──────────────────────────────────────
+/**
+ * getSecureRandomInt(max) — returns a cryptographically
+ * secure integer in [0, max) using rejection sampling to
+ * avoid modulo bias.
+ */
+function getSecureRandomInt(max) {
+  const arr = new Uint32Array(1);
+  const limit = Math.floor(0xFFFFFFFF / max) * max;
+  let val;
+  do {
+    crypto.getRandomValues(arr);
+    val = arr[0];
+  } while (val >= limit);
+  return val % max;
+}
+
+// ── Generate password ────────────────────────────────────
+function generatePassword() {
+  const length = parseInt(lengthSlider.value);
+  const selected = {};
+  optionLabels.forEach(label => {
+    const key = label.dataset.key;
+    selected[key] = label.querySelector('input').checked;
+  });
+
+  // Build charset — ensure at least one selected
+  let charset = '';
+  const guarantees = [];
+  Object.entries(selected).forEach(([key, on]) => {
+    if (on && CHARSETS[key]) {
+      charset += CHARSETS[key];
+      // Guarantee at least one char from each selected set
+      const pool = CHARSETS[key];
+      guarantees.push(pool[getSecureRandomInt(pool.length)]);
+    }
+  });
+
+  if (!charset) {
+    showToast('⚠️ Select at least one option!');
+    return;
+  }
+
+  // Fill remaining slots
+  const remaining = length - guarantees.length;
+  const extra = [];
+  for (let i = 0; i < remaining; i++) {
+    extra.push(charset[getSecureRandomInt(charset.length)]);
+  }
+
+  // Merge & shuffle using Fisher-Yates with CSPRNG
+  const all = [...guarantees, ...extra];
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = getSecureRandomInt(i + 1);
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+
+  currentPassword = all.join('');
+  displayPassword(currentPassword, charset.length, length);
+  addToHistory(currentPassword);
+}
+
+// ── Display ──────────────────────────────────────────────
+function displayPassword(pwd, charsetSize, length) {
+  output.classList.add('generating');
+  setTimeout(() => {
+    output.textContent = pwd;
+    output.classList.remove('generating');
+
+    // Entropy = L * log2(N)
+    const entropy = Math.round(length * Math.log2(charsetSize));
+    entropyTag.textContent = `Entropy: ${entropy} bits`;
+
+    updateStrength(entropy);
+  }, 120);
+}
+
+// ── Strength ─────────────────────────────────────────────
+function updateStrength(entropy) {
+  let level, color, label;
+  if (entropy < 40) {
+    level = 1; color = 'var(--weak)'; label = 'WEAK';
+  } else if (entropy < 60) {
+    level = 2; color = 'var(--medium)'; label = 'FAIR';
+  } else if (entropy < 80) {
+    level = 3; color = 'var(--medium)'; label = 'GOOD';
+  } else {
+    level = 4; color = 'var(--strong)'; label = 'STRONG';
+  }
+
+  bars.forEach((bar, i) => {
+    bar.style.background = i < level ? color : 'var(--border)';
+  });
+  strengthLbl.textContent = label;
+  strengthLbl.style.color = color;
+}
+
+// ── Copy ─────────────────────────────────────────────────
+copyBtn.addEventListener('click', () => {
+  if (!currentPassword) return;
+  navigator.clipboard.writeText(currentPassword).then(() => showToast('✅ Copied!'));
+});
+
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ── History ───────────────────────────────────────────────
+function getStrengthLabel(pwd) {
+  const hasU = /[A-Z]/.test(pwd), hasL = /[a-z]/.test(pwd);
+  const hasN = /\d/.test(pwd), hasS = /[^a-zA-Z0-9]/.test(pwd);
+  const types = [hasU,hasL,hasN,hasS].filter(Boolean).length;
+  const entropy = pwd.length * Math.log2(26 * (hasU||hasL?2:1) + (hasN?10:0) + (hasS?32:0) || 26);
+  if (entropy < 40) return 'weak';
+  if (entropy < 60) return 'medium';
+  return 'strong';
+}
+
+function addToHistory(pwd) {
+  history.unshift({ pwd, time: new Date().toLocaleTimeString(), strength: getStrengthLabel(pwd) });
+  if (history.length > 10) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  if (!history.length) {
+    historyList.innerHTML = '<p class="history-empty">No passwords generated yet.</p>';
+    return;
+  }
+  historyList.innerHTML = history.map((item, i) => `
+    <div class="history-item">
+      <span class="history-pwd">${item.pwd}</span>
+      <span class="history-badge badge-${item.strength}">${item.strength.toUpperCase()}</span>
+      <span style="font-family:var(--mono);font-size:.6rem;color:var(--muted);white-space:nowrap;">${item.time}</span>
+      <button class="history-copy" onclick="copyHistoryItem(${i})" title="Copy">📋</button>
+    </div>
+  `).join('');
+}
+
+function copyHistoryItem(i) {
+  navigator.clipboard.writeText(history[i].pwd).then(() => showToast('✅ Copied!'));
+}
+
+document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+  history = [];
+  renderHistory();
+  showToast('🗑 History cleared');
+});
+
+// ── Download ──────────────────────────────────────────────
+function downloadText(content, filename) {
+  const a = document.createElement('a');
+  a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(content);
+  a.download = filename;
+  a.click();
+}
+
+document.getElementById('downloadSingleBtn').addEventListener('click', () => {
+  if (!currentPassword) { showToast('⚠️ No password generated!'); return; }
+  downloadText(`VaultKey — Generated Password\n${'─'.repeat(40)}\nPassword : ${currentPassword}\nGenerated: ${new Date().toLocaleString()}\n`, 'vaultkey-password.txt');
+  showToast('💾 Downloaded!');
+});
+
+document.getElementById('downloadAllBtn').addEventListener('click', () => {
+  if (!history.length) { showToast('⚠️ No history to export!'); return; }
+  const lines = history.map((h, i) =>
+    `${String(i+1).padStart(2,'0')}. [${h.strength.toUpperCase().padEnd(6)}] ${h.pwd}  (${h.time})`
+  ).join('\n');
+  downloadText(`VaultKey — Password History\n${'─'.repeat(60)}\n${lines}\n\nExported: ${new Date().toLocaleString()}\n`, 'vaultkey-history.txt');
+  showToast('📥 Exported!');
+});
+
+// ── Generate ──────────────────────────────────────────────
+generateBtn.addEventListener('click', generatePassword);
+
+// Auto-generate on load
+generatePassword();
+</script>
+</body>
+</html>
